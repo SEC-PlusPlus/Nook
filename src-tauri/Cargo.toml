@@ -1,6 +1,6 @@
 [package]
 name = "nook"
-version = "0.7.4"
+version = "0.7.5"
 description = "Nook —— 把网页短视频装进桌角的一枚闲窗"
 edition = "2021"
 

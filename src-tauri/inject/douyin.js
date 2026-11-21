@@ -42,6 +42,17 @@
   let vfsSaved = null;      // [[player, origParent, cssText]] 退出时送播放器回家
   let vfsLoopGuard = null;  // 重播/防回填/防自动连播 守卫
 
+  // 屏幕上正在播的"大视频"(按面积判定:横窗播竖屏时宽不足,不能按宽高各自卡阈值)
+  // IIFE 顶层定义:applyScale 与 zenApply 两个闭包共用
+  const bigVisibleVideo = () => {
+    const area = innerWidth * innerHeight;
+    for (const x of document.querySelectorAll('video')) {
+      const b = x.getBoundingClientRect();
+      if (b.width * b.height >= area * 0.15 && b.bottom > 0 && b.top < innerHeight) return x;
+    }
+    return null;
+  };
+
   // ===== 等比缩放 + 真透明:作用于 body 直属子元素(把手/面板/视频层除外) =====
   const TARGET_CSS_W = 1280;
   const TARGET_CSS_H = 820; // 给播放页控制条留足 css 高度,避免底部被裁
@@ -54,14 +65,7 @@
     }
     // 正在看"大视频"(播放页/feed 播放态/影院宿主)时整页豁免 zoom:
     // 抖音播放器自适配窗口,我们的 zoom 撞上其 100vh 内部布局会产生画中画式错位
-    const playerVisible = () => {
-      for (const x of document.querySelectorAll('video')) {
-        const b = x.getBoundingClientRect();
-        if (b.width >= innerWidth * 0.4 && b.height >= innerHeight * 0.4
-          && b.bottom > 0 && b.top < innerHeight) return true;
-      }
-      return false;
-    };
+    const playerVisible = () => !!bigVisibleVideo();
     const z = playerVisible() ? 1.0 : Math.min(1.0, Math.max(0.42,
       Math.min(window.innerWidth / TARGET_CSS_W, window.innerHeight / TARGET_CSS_H)));
     const a = (dragSupp ? Math.min(userAlpha, 60) : userAlpha) / 100;
@@ -75,7 +79,64 @@
         if (el.style.opacity !== as) el.style.opacity = as;
       }
     }
+    zenApply();
   };
+
+  // ===== 沉浸(zen):播放态把三栏外观栏缩小,把空间让给视频 =====
+  // 目标三栏:左导航栏(精选/推荐)、顶栏(搜索/更多/通知)、右导航(上一/下一条)。
+  // 手法=对栏元素设 zoom 0.55 等比缩小(display:none 版被否:用户要"缩小"非隐藏);
+  // 含视频的祖先保护,互动按钮条(在视频右侧但属播放器内部)天然不在候选;
+  // 回网格(无大视频)自动还原;影院态跳过;开关持久化,⚙ 面板可关。
+  const ZEN_SHRINK = '0.55';
+  let zenOn;
+  try { zenOn = localStorage.getItem('nook.zen') !== '0'; } catch (_) { zenOn = true; }
+  const zenShrunk = new Map(); // el -> 原 zoom 值
+  const zenApply = () => {
+    for (const [el, z] of zenShrunk) {
+      if (z) el.style.zoom = z; else el.style.removeProperty('zoom');
+    }
+    zenShrunk.clear();
+    if (!zenOn || vfsOn || !document.body) return;
+    const v = bigVisibleVideo();
+    if (!v) return;
+    const vb = v.getBoundingClientRect();
+    const protect = new Set();
+    for (let a = v; a; a = a.parentElement) protect.add(a);
+    protect.add(document.documentElement);
+    protect.add(document.body);
+    const matched = [];
+    const consider = (el) => {
+      if (el.nodeType !== 1 || protect.has(el) || SKIP.has(el.id) || zenShrunk.has(el)) return;
+      if (el.contains(v)) return; // 含视频的子树不碰
+      const b = el.getBoundingClientRect();
+      if (b.width <= 0 || b.height <= 0) return;
+      const thin = innerWidth * 0.24;
+      const leftRail = b.left <= 10 && b.right <= vb.left + 24
+        && b.height >= innerHeight * 0.3 && b.width <= thin;
+      // 右导航(上一/下一条):在视频右缘且留空隙,不碰播放器内部的互动按钮
+      const rightRail = b.left >= vb.right + 4 && b.right >= innerWidth - 12
+        && b.height >= innerHeight * 0.3 && b.width <= thin;
+      const topBar = b.top <= 8 && b.height <= 96 && b.width >= innerWidth * 0.4;
+      if (leftRail || rightRail || topBar) matched.push(el);
+    };
+    // 有界扫描:深度 ≤9;必须下钻含视频的祖先(栏与视频同父),
+    // 安全性由 consider 内的 protect/contains 保证
+    const stack = [[document.body, 0]];
+    while (stack.length) {
+      const [node, d] = stack.pop();
+      for (const c of node.children) {
+        consider(c);
+        if (d < 9) stack.push([c, d + 1]);
+      }
+    }
+    // 去重:只保留最外层栏(嵌套命中会让 zoom 叠乘,0.55×0.55 就过度了)
+    for (const el of matched) {
+      if (matched.some((o) => o !== el && o.contains(el))) continue;
+      zenShrunk.set(el, el.style.zoom || '');
+      el.style.zoom = ZEN_SHRINK;
+    }
+  };
+  window.__DYWIN_ZEN = zenApply; // 调试/面板钩子
   let scaleT;
   const scheduleScale = () => { clearTimeout(scaleT); scaleT = setTimeout(applyScale, 120); };
   window.addEventListener('resize', scheduleScale);
@@ -115,10 +176,38 @@
 
   const vfsPlayerOf = (v) => (v.closest && v.closest('[class*="xgplayer"]')) || v.parentElement || v;
 
+  // 影院态隐藏播放器底栏(进度条+暂停/连播/清屏/倍速/音量那行):
+  // 几何判定=视频下缘一带的横条,只缩最外层;每轮重判(位置会变),退出全量还原
+  const vfsCtl = new Map(); // el -> 原 display
+  const vfsRestoreCtl = () => {
+    for (const [el, disp] of vfsCtl) { try { el.style.display = disp; } catch (_) { } }
+    vfsCtl.clear();
+  };
+  const vfsHideCtl = (pl) => {
+    const vv = pl.querySelector('video');
+    if (!vv) return;
+    const vb = vv.getBoundingClientRect();
+    vfsRestoreCtl();
+    const cands = [];
+    for (const el of pl.querySelectorAll('*')) {
+      if (el.contains(vv)) continue; // 含视频的容器不碰
+      const b = el.getBoundingClientRect();
+      if (b.height <= 0 || b.height > 110) continue;
+      if (b.width < Math.max(160, vb.width) * 0.6) continue;
+      if (b.top >= vb.bottom - 110 && b.bottom <= innerHeight + 6) cands.push(el);
+    }
+    for (const el of cands) {
+      if (cands.some((o) => o !== el && o.contains(el))) continue;
+      vfsCtl.set(el, el.style.display);
+      el.style.display = 'none';
+    }
+  };
+
   const vfsStyleTick = () => {
     if (!vfsOn || !vfsSaved || !vfsSaved[0]) return;
     const vv = vfsSaved[0][0].querySelector('video');
     if (!vv) return;
+    vfsHideCtl(vfsSaved[0][0]);
     // 防播放器回填样式:逐轮重刷。contain=画面按原始比例完整居中,窗口比例不合时只出黑边,
     // 不裁切不拉伸(即"原视频等比例缩小")
     vv.style.setProperty('width', '100%', 'important');
@@ -143,6 +232,7 @@
       }
       vfsSaved = null;
       if (vfsLoopGuard) { clearInterval(vfsLoopGuard); vfsLoopGuard = null; }
+      vfsRestoreCtl();
       const host = document.getElementById('dywin-vfsbox');
       if (host) host.remove();
       window.__DYWIN_VFSTOP = null;
@@ -192,7 +282,7 @@
 
     const bar = document.createElement('div');
     bar.id = 'dywin-bar';
-    css(bar, `position:fixed;top:4px;left:50%;transform:none;
+    css(bar, `position:fixed;top:4px;left:50%;transform:translateX(-50%);
       z-index:2147483647;display:flex;gap:8px;align-items:center;
       padding:3px 12px;border-radius:15px;background:rgba(12,12,16,.85);
       color:#bbb;font:12px/1.5 -apple-system,'Segoe UI','Microsoft YaHei',sans-serif;
@@ -288,7 +378,7 @@
     // ===== 设置面板(页面内小组件,不新开窗口) =====
     const panel = document.createElement('div');
     panel.id = 'dywin-panel';
-    css(panel, `position:fixed;top:34px;left:50%;transform:none;
+    css(panel, `position:fixed;top:34px;left:50%;transform:translateX(-50%);
       z-index:2147483647;display:none;flex-direction:column;gap:8px;width:300px;
       padding:12px 14px;border-radius:12px;background:rgba(16,16,22,.96);
       color:#cfcfd8;font:12px/1.6 -apple-system,'Segoe UI','Microsoft YaHei',sans-serif;
@@ -301,6 +391,9 @@
       <div data-kmsg style="min-height:16px;font-size:11px;color:#8a8a98"></div>
       <div style="border-top:1px solid #2c2c38;padding-top:8px">窗口大小:</div>
       <div style="display:flex;gap:6px"><button data-size="small">小</button><button data-size="std">标准</button><button data-size="big">大</button></div>
+      <label data-zenrow style="display:flex;align-items:center;gap:6px;border-top:1px solid #2c2c38;padding-top:8px;cursor:pointer">
+        <input type="checkbox" data-zen style="accent-color:#25f4ee"> 沉浸:播放时缩小左/上/右三栏
+      </label>
       <div style="color:#666;font-size:11px">透明滑条在把手上;窗口边缘可直接拖拽缩放</div>`;
     document.body.appendChild(panel);
     const BTN = `padding:5px 0;border-radius:7px;border:1px solid #34343f;background:#26262f;color:#d0d0d8;cursor:pointer;font-size:12px;flex:1`;
@@ -346,6 +439,14 @@
         .then(() => { pendingCombo = ''; kcap.textContent = '未设置'; kmsg.textContent = '已清除'; })
         .catch(() => {});
     });
+    const zenCb = panel.querySelector('[data-zen]');
+    zenCb.checked = zenOn;
+    zenCb.addEventListener('change', () => {
+      zenOn = zenCb.checked;
+      try { localStorage.setItem('nook.zen', zenOn ? '1' : '0'); } catch (_) { }
+      applyScale();
+    });
+
     panel.querySelectorAll('[data-size]').forEach((b) => {
       b.addEventListener('click', () => invoke('set_size_preset', { which: b.dataset.size }).catch(() => {}));
     });

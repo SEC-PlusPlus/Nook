@@ -18,7 +18,8 @@ Nook 把抖音网页播放器变成一枚无边框、置顶的桌面小窗,安�
 
 - 🪟 **真透明** —— 整个窗口淡进底下的工作区,透过它看清后面
 - 🔒 **防误触锁** —— 干活时点击/双击/滚轮/快捷键全部屏蔽,视频纹丝不动;拖窗照常
-- ⛶ **迷你影院** —— 单视频聚焦:当前视频等比例撑满小窗(不裁切不拉伸),锁定滑动切换,播完重播,`Esc` 退出
+- ⛶ **迷你影院** —— 单视频聚焦:当前视频等比例撑满小窗(不裁切不拉伸),锁定滑动切换,播完重播,底栏控制条自动隐藏,`Esc` 退出
+- 🧺 **沉浸三栏** —— 播放态自动缩小左导航/顶搜索/右切换三栏,把空间让给视频(`⚙` 可关)
 - ⚡ **一键闪现** —— `Ctrl+Q` 收到托盘、再按弹回,隐藏状态也能直接唤出
 - 📐 **等比自适应** —— 逛推荐网格时页面随窗口等比缩放;进入视频播放态自动豁免,播放比例零干扰
 - 🧘 **轻装上阵** —— Rust + Tauri + 系统 WebView2,安装包仅 2.5MB
@@ -28,7 +29,7 @@ Nook 把抖音网页播放器变成一枚无边框、置顶的桌面小窗,安�
 
 **Windows 10 / 11**(自带 WebView2,免管理员,装于当前用户目录):
 
-👉 **[Nook_0.7.4_x64-setup.exe](https://github.com/SEC-PlusPlus/Nook/raw/main/releases/Nook_0.7.4_x64-setup.exe)**(2.5MB,双击安装)
+👉 **[Nook_0.7.5_x64-setup.exe](https://github.com/SEC-PlusPlus/Nook/raw/main/releases/Nook_0.7.5_x64-setup.exe)**(2.5MB,双击安装)
 
 ### 上手
 
@@ -56,7 +57,8 @@ Built on Rust and the system WebView2 runtime: one ~12 MB executable, no Electro
 
 - 🪟 **True transparency** — fade the whole window into whatever's underneath
 - 🔒 **Misclick lock** — clicks, double-clicks, wheels and page hotkeys all bounce off while you work
-- ⛶ **Mini-theater** — one-video focus: current video scales to fit the window (no crop, no stretch), scroll-switching locked, loops on end; `Esc` exits
+- ⛶ **Mini-theater** — one-video focus: current video scales to fit the window (no crop, no stretch), scroll-switching locked, loops on end, bottom control bar auto-hidden; `Esc` exits
+- 🧺 **Zen rails** — while a video plays, the left-nav, top-bar and right-switcher rails shrink automatically to give the video more room (toggle in ⚙)
 - ⚡ **Blink minimize** — `Ctrl+Q` away, `Ctrl+Q` back, even from the tray
 - 📐 **Adaptive zoom** — recommendation grid scales with the window; auto-exempt while a video is playing so aspect is never disturbed
 - 🧘 **Lightweight** — Rust + Tauri + system WebView2; 2.5 MB installer
@@ -66,7 +68,7 @@ Built on Rust and the system WebView2 runtime: one ~12 MB executable, no Electro
 
 **Windows 10 / 11** (WebView2 preinstalled; per-user install, no admin required):
 
-👉 **[Nook_0.7.4_x64-setup.exe](https://github.com/SEC-PlusPlus/Nook/raw/main/releases/Nook_0.7.4_x64-setup.exe)** (2.5 MB)
+👉 **[Nook_0.7.5_x64-setup.exe](https://github.com/SEC-PlusPlus/Nook/raw/main/releases/Nook_0.7.5_x64-setup.exe)** (2.5 MB)
 
 ### Controls
 
