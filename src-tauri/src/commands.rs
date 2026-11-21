@@ -67,17 +67,3 @@ pub fn set_size_preset(app: AppHandle, which: String) {
         _ => appctl::set_preset_size(&app, state::DEFAULT_W, state::DEFAULT_H),
     }
 }
-
-/// VFS:窗口按视频宽高比自动配型(ar = 视频宽/高)
-#[tauri::command]
-pub fn vfs_fit_window(app: AppHandle, ar: f64) {
-    if ar.is_finite() && (0.2..=5.0).contains(&ar) {
-        appctl::vfs_fit_window(&app, ar);
-    }
-}
-
-/// VFS 退出:恢复原几何
-#[tauri::command]
-pub fn vfs_restore_cmd(app: AppHandle) {
-    appctl::vfs_restore(&app);
-}

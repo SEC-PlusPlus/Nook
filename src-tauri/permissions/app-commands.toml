@@ -13,6 +13,4 @@ commands.allow = [
   "set_opacity",
   "set_hotkey",
   "set_size_preset",
-  "vfs_fit_window",
-  "vfs_restore_cmd",
 ]

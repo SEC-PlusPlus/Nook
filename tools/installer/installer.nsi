@@ -6,7 +6,7 @@ Unicode true
 !include "LogicLib.nsh"
 
 !define APP_NAME   "Nook"
-!define APP_VER    "0.7.0"
+!define APP_VER    "0.7.1"
 !define APP_PUB    "SEC-PlusPlus"
 !define EXE_NAME   "nook.exe"
 !define SRC_ROOT   "..\..\src-tauri"

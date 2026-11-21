@@ -10,7 +10,7 @@
 
 Nook 把抖音网页播放器变成一枚无边框、置顶的桌面小窗,安静待在屏幕角落,尽量不打扰你——除非你想瞟一眼。
 
-拉低透明度,让视频浮在工作之上;上锁之后,误点、双击、滚轮、快捷键统统碰不到它;一个键让视频撑满小窗,窗口自动匹配视频比例,零黑边零裁切;`Ctrl+Q` 一键收走,再按一次弹回(藏在托盘里也能唤出)。
+拉低透明度,让视频浮在工作之上;上锁之后,误点、双击、滚轮、快捷键统统碰不到它;一个键让视频撑满当前窗口(保持画面比例、无黑边,窗口仍可自由伸缩,视频实时跟随);`Ctrl+Q` 一键收走,再按一次弹回(藏在托盘里也能唤出)。
 
 基于 Rust 与系统 WebView2:约 12MB 单文件,无 Electron、无遥测。位置、大小、透明度、快捷键、登录态全部只存本机。
 
@@ -18,7 +18,7 @@ Nook 把抖音网页播放器变成一枚无边框、置顶的桌面小窗,安�
 
 - 🪟 **真透明** —— 整个窗口淡进底下的工作区,透过它看清后面
 - 🔒 **防误触锁** —— 干活时点击/双击/滚轮/快捷键全部屏蔽,视频纹丝不动;拖窗照常
-- ⛶ **迷你影院** —— 视频撑满窗口,窗口适配视频比例,`Esc` 释放
+- ⛶ **迷你影院** —— 视频撑满当前窗口(保持比例无黑边),窗口照常自由伸缩,`Esc` 释放
 - ⚡ **一键闪现** —— `Ctrl+Q` 收走、再按弹回,托盘隐藏状态也能直接唤出
 - 📐 **等比自适应** —— 窗口任意缩放,页面内容整体跟随缩放;无边框边缘可直接拖拽改大小
 - 🧘 **轻装上阵** —— Rust + Tauri + 系统 WebView2,安装包仅 2.5MB
@@ -28,7 +28,7 @@ Nook 把抖音网页播放器变成一枚无边框、置顶的桌面小窗,安�
 
 **Windows 10 / 11**(自带 WebView2,免管理员,装于当前用户目录):
 
-👉 **[Nook_0.7.0_x64-setup.exe](https://github.com/SEC-PlusPlus/Nook/raw/main/releases/Nook_0.7.0_x64-setup.exe)**(2.5MB,双击安装)
+👉 **[Nook_0.7.1_x64-setup.exe](https://github.com/SEC-PlusPlus/Nook/raw/main/releases/Nook_0.7.1_x64-setup.exe)**(2.5MB,双击安装)
 
 ### 上手
 
@@ -48,7 +48,7 @@ Nook 把抖音网页播放器变成一枚无边框、置顶的桌面小窗,安�
 
 Nook turns Douyin's web player into a borderless always-on-top window that settles into a corner of your screen and stays out of your way — until you peek.
 
-Dim it until the video floats over your work. Lock it so a stray click or scroll can't pause playback or flip past your place. One key sends the video edge-to-edge in the window, and the window resizes itself to the video's aspect ratio — no letterbox, no crop. `Ctrl+Q` blinks it away; `Ctrl+Q` again blinks it back.
+Dim it until the video floats over your work. Lock it so a stray click or scroll can't pause playback or flip past your place. One key sends the video edge-to-edge in the window — aspect-true, no letterbox — while the window stays exactly where it is and keeps resizing freely, the video following along. `Ctrl+Q` blinks it away; `Ctrl+Q` again blinks it back.
 
 Built on Rust and the system WebView2 runtime: one ~12 MB executable, no Electron, no telemetry. Your position, size, opacity, hotkeys and login all live on your own machine.
 
@@ -56,7 +56,7 @@ Built on Rust and the system WebView2 runtime: one ~12 MB executable, no Electro
 
 - 🪟 **True transparency** — fade the whole window into whatever's underneath
 - 🔒 **Misclick lock** — clicks, double-clicks, wheels and page hotkeys all bounce off while you work
-- ⛶ **Mini-theater** — video fills the window, window fits the video; `Esc` releases
+- ⛶ **Mini-theater** — video fills the current window, aspect-true with no letterbox; window still resizes freely; `Esc` releases
 - ⚡ **Blink minimize** — `Ctrl+Q` away, `Ctrl+Q` back, even from the tray
 - 📐 **Adaptive zoom** — page content scales to any window size; frameless edges resize natively
 - 🧘 **Lightweight** — Rust + Tauri + system WebView2; 2.5 MB installer
@@ -66,7 +66,7 @@ Built on Rust and the system WebView2 runtime: one ~12 MB executable, no Electro
 
 **Windows 10 / 11** (WebView2 preinstalled; per-user install, no admin required):
 
-👉 **[Nook_0.7.0_x64-setup.exe](https://github.com/SEC-PlusPlus/Nook/raw/main/releases/Nook_0.7.0_x64-setup.exe)** (2.5 MB)
+👉 **[Nook_0.7.1_x64-setup.exe](https://github.com/SEC-PlusPlus/Nook/raw/main/releases/Nook_0.7.1_x64-setup.exe)** (2.5 MB)
 
 ### Controls
 
@@ -97,7 +97,7 @@ cargo build --release              # 便携版:target/release/nook.exe
 |---|---|
 | `src-tauri/src/main.rs` | 装配:插件、命令注册、窗口创建、脚本注入、旧数据迁移 |
 | `src-tauri/src/state.rs` | 全局状态与持久化 |
-| `src-tauri/src/appctl.rs` | 置顶 / 显隐 / 最小化 / 尺寸 / 迷你影院窗口配型 |
+| `src-tauri/src/appctl.rs` | 置顶 / 显隐 / 最小化⇄弹回 / 尺寸预设 |
 | `src-tauri/src/hotkeys.rs` | 全局快捷键解析与注册 |
 | `src-tauri/src/ui.rs` | 系统托盘 |
 | `src-tauri/src/commands.rs` | 页面侧命令面(ACL:`permissions/app-commands.toml`) |
