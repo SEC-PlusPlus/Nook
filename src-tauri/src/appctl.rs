@@ -1,9 +1,56 @@
-// 窗口行为:置顶 / 显隐 / 最小化 / 尺寸预设 / 持久化透明度值 / VFS 等比适配窗口
+// 窗口行为:置顶 / 显隐 / 隐藏⇄唤回 / 尺寸预设 / 影院窗口配型
 // 注:真正的"透明度"由注入脚本用 CSS opacity 实现(WebView2 内容不吃 Win32 整窗 alpha,
 //     窗口本体以 transparent 模式创建);拖动时压暗也在 JS 里做,本模块只管数值存取。
-use tauri::{AppHandle, PhysicalSize};
+use std::sync::{Mutex, OnceLock};
+
+use tauri::{AppHandle, PhysicalPosition, PhysicalSize};
 
 use crate::state::{main_win, persist, refresh_tray_menu, TOPMOST};
+
+/// 影院进入前的窗口几何(物理像素),退出时一次性恢复
+static VFS_SNAP: OnceLock<Mutex<Option<(i32, i32, u32, u32)>>> = OnceLock::new();
+fn vfs_snap() -> &'static Mutex<Option<(i32, i32, u32, u32)>> {
+    VFS_SNAP.get_or_init(|| Mutex::new(None))
+}
+
+/// 影院:把窗口尺寸配成视频比例(92% 工作区内取最大,居中),首次进入存档几何
+pub fn vfs_fit_window(app: &AppHandle, ar: f64) {
+    let Some(w) = main_win(app) else { return };
+    if let (Ok(p), Ok(z)) = (w.inner_position(), w.inner_size()) {
+        let mut snap = vfs_snap().lock().unwrap();
+        if snap.is_none() {
+            *snap = Some((p.x, p.y, z.width, z.height));
+        }
+    }
+    let Ok(Some(m)) = w.current_monitor() else { return };
+    let wa = m.work_area();
+    let sf = w.scale_factor().unwrap_or(1.0);
+    let max_w = (wa.size.width as f64 * 0.92) as u32;
+    let max_h = (wa.size.height as f64 * 0.92) as u32;
+    let (min_w, min_h) = ((480.0 * sf) as u32, (320.0 * sf) as u32);
+    let (tw, th) = if (max_w as f64) / (max_h as f64) >= ar {
+        ((max_h as f64 * ar) as u32, max_h)
+    } else {
+        (max_w, (max_w as f64 / ar) as u32)
+    };
+    let (tw, th) = (tw.max(min_w), th.max(min_h));
+    let x = wa.position.x + (wa.size.width as i32 - tw as i32) / 2;
+    let y = wa.position.y + (wa.size.height as i32 - th as i32) / 2;
+    let _ = w.set_size(PhysicalSize::new(tw, th));
+    let _ = w.set_position(PhysicalPosition::new(x, y));
+    persist(app, false);
+}
+
+/// 影院退出:恢复进入前的几何
+pub fn vfs_restore(app: &AppHandle) {
+    if let Some((x, y, w_, h_)) = vfs_snap().lock().unwrap().take() {
+        if let Some(w) = main_win(app) {
+            let _ = w.set_size(PhysicalSize::new(w_, h_));
+            let _ = w.set_position(PhysicalPosition::new(x, y));
+            persist(app, false);
+        }
+    }
+}
 
 pub fn flip_topmost(app: &AppHandle) {
     let v = !TOPMOST.load(std::sync::atomic::Ordering::Relaxed);
@@ -34,24 +81,13 @@ pub fn show_main(app: &AppHandle) {
     }
 }
 
-pub fn minimize_main(app: &AppHandle) {
-    if let Some(w) = main_win(app) {
-        let _ = w.minimize();
-    }
-}
-
-/// 自定义快捷键语义:最小化 ⇄ 弹回;若隐藏到托盘则唤出
+/// 自定义快捷键/🗕语义:隐藏 ⇄ 唤回(不用系统最小化,规避透明窗任务栏空白)
 pub fn toggle_minimize(app: &AppHandle) {
     let Some(w) = main_win(app) else { return };
-    if !w.is_visible().unwrap_or(true) {
-        show_main(app);
-        return;
-    }
-    if w.is_minimized().unwrap_or(false) {
-        let _ = w.unminimize();
-        let _ = w.set_focus();
+    if w.is_visible().unwrap_or(true) {
+        let _ = w.hide();
     } else {
-        let _ = w.minimize();
+        show_main(app);
     }
 }
 

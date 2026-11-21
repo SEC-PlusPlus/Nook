@@ -65,6 +65,7 @@ pub fn on_menu(app: &AppHandle, event: &MenuEvent) {
 pub fn init_tray(app: &AppHandle) -> tauri::Result<()> {
     let _tray = TrayIconBuilder::with_id("tray")
         .menu(&build_menu(app)?)
+        .icon(tauri::include_image!("icons/32x32.png"))
         .tooltip("Nook —— 右键菜单,双击唤出")
         .on_menu_event(|app, event| on_menu(app, &event))
         .on_tray_icon_event(|tray, event| {

@@ -40,7 +40,7 @@
   let dragSupp = false;     // 拖动中 → 压暗
   let vfsOn = false;
   let vfsSaved = null;      // [[el, cssText]] 祖先链样式还原
-  let vfsHidden = null;     // [[el, display]] 侧栏/顶栏等旁支兄弟元素还原
+  let vfsHidden = null;     // [[el, display]] 旁支隐藏还原
 
   // ===== 等比缩放 + 真透明:作用于 body 直属子元素(把手/面板/视频层除外) =====
   const TARGET_CSS_W = 1280;
@@ -57,7 +57,7 @@
     const a = (dragSupp ? Math.min(userAlpha, 60) : userAlpha) / 100;
     const zs = z.toFixed(3);
     const as = a.toFixed(3);
-    // VFS 激活时,包含视频的那棵子树豁免 zoom(fixed 元素在被缩放的祖先里会溢出视口)
+    // VFS 激活时,包含视频的 body 直属子树豁免 zoom(100vw/vh 在缩放子树里会失真);透明度照常
     const fsTop = vfsOn ? window.__DYWIN_VFSTOP : null;
     for (const el of document.body.children) {
       if (el.nodeType === 1 && !SKIP.has(el.id) && el.style) {
@@ -163,9 +163,17 @@
     v.style.setProperty('padding', '0', 'important');
     v.style.setProperty('background', 'transparent', 'important');
     v.style.setProperty('display', 'block', 'important');
-    // cover:保持比例填满当前窗口,溢出均分裁切;窗口自由伸缩,视频实时贴合
-    v.style.setProperty('object-fit', 'cover', 'important');
+    v.style.setProperty('object-fit', 'contain', 'important');
+    v.style.setProperty('object-position', 'top center', 'important');
     vfsHideSiblings(v);
+  };
+
+  // 让窗口比例 == 视频比例(Rust 侧在 92% 工作区内取最大并居中,自带快照)
+  const vfsFit = (v) => {
+    const ar = (v.videoWidth && v.videoHeight)
+      ? v.videoWidth / v.videoHeight
+      : (v.clientWidth && v.clientHeight ? v.clientWidth / v.clientHeight : 0);
+    if (ar > 0.2 && ar < 5) invoke('vfs_fit_window', { ar: +ar.toFixed(4) }).catch(() => {});
   };
 
   const toggleVfs = () => {
@@ -180,6 +188,7 @@
       vfsOn = false;
       vfsBtnVisual();
       applyScale();
+      invoke('vfs_restore_cmd').catch(() => {});
       return;
     }
     const v = document.querySelector('video');
@@ -192,56 +201,36 @@
     vfsOn = true;
     vfsBtnVisual();
     applyScale();
-  };
-
-
-  // 安全开关:连播换节点等竞态下可能半途抛错——全部回滚,稍后自动重试一次,
-  // 保证"要么完整进入影院,要么干净地什么都没发生"
-  const safeToggleVfs = () => {
-    const wasOn = vfsOn;
-    try {
-      toggleVfs();
-    } catch (e) {
-      try {
-        if (vfsSaved) for (const [el, txt] of vfsSaved) el.style.cssText = txt;
-        if (vfsHidden) for (const [el, dsp] of vfsHidden) el.style.display = dsp;
-      } catch (_) { /* 回滚尽力而为 */ }
-      vfsSaved = null; vfsHidden = null;
-      vfsAnchors = null; vfsHiddenSet = null;
-      window.__DYWIN_VFSTOP = null;
-      vfsOn = false;
-      vfsBtnVisual();
-      applyScale();
-      if (!wasOn) {
-        setTimeout(() => {
-          const v = document.querySelector('video');
-          if (v && v.videoWidth && !vfsOn) { try { toggleVfs(); } catch (_) { } }
-        }, 500);
-      }
+    vfsFit(v);
+    if (!v.videoWidth) {
+      v.addEventListener('loadedmetadata', () => { if (vfsOn) vfsFit(v); }, { once: true });
     }
   };
-  window.__DYWIN_TOGGLE_VFS = safeToggleVfs;
 
-  // 看门狗:播放器重写样式/自动连播换节点后自愈(窗口尺寸不动,cover 自动跟随)
+  window.__DYWIN_TOGGLE_VFS = toggleVfs;
+
+  // 看门狗:播放器重写样式/自动连播换节点后自愈;并持续维持窗口-视频比例一致
   setInterval(() => {
-    if (!vfsOn) return;
-    const v = document.querySelector('video');
+    if (!vfsOn) return;    const v = document.querySelector('video');
     if (!v) return;
     const b = v.getBoundingClientRect();
-    if (Math.abs(b.top) > 2 || Math.abs(b.left) > 2
-      || Math.abs(b.width - innerWidth) > 4 || Math.abs(b.height - innerHeight) > 4) {
+    if (b.top > 2 || Math.abs(b.width - innerWidth) > 4 || Math.abs(b.height - innerHeight) > 4) {
       vfsEnforce();
       applyScale();
     }
+    if (v.videoWidth && v.videoHeight) {
+      const va = v.videoWidth / v.videoHeight;
+      const wa = innerWidth / innerHeight;
+      if (Math.abs(va - wa) / va > 0.03) vfsFit(v);
+    }
   }, 600);
-
   // 抖音原生全屏请求 → 改道 VFS
   if (!Element.prototype.__DYWIN_FS_HIJACKED) {
     Element.prototype.__DYWIN_FS_HIJACKED = 1;
     const raf = Element.prototype.requestFullscreen;
     Element.prototype.requestFullscreen = function () {
       if (this.closest && this.closest('#dywin-bar,#dywin-panel')) return raf.apply(this, arguments);
-      safeToggleVfs();
+      toggleVfs();
       return Promise.resolve(null);
     };
   }
@@ -285,10 +274,10 @@
     bar.appendChild(slider);
 
     const fsBtn = mkBtn('dywin-fs', '⛶', '视频铺满小窗(Esc 还原)');
-    const minBtn = mkBtn('dywin-min', '🗕', '最小化');
+    const minBtn = mkBtn('dywin-min', '🗕', '隐藏到托盘(Ctrl+Q 同样收放)');
     const gearBtn = mkBtn('dywin-gear', '⚙', '设置面板');
     const lockBtn = mkBtn('dywin-lockbtn', '🔓', '锁住:屏蔽对视频的鼠标/滚轮/键盘误触(拖窗、把手仍可用)');
-    const hideBtn = mkBtn('dywin-hide', '✕', '隐藏到托盘');
+    const hideBtn = mkBtn('dywin-hide', '✕', '关闭并退出程序');
 
     document.body.appendChild(bar);
     applyScale();
@@ -301,7 +290,7 @@
       if (w) { e.preventDefault(); e.stopPropagation(); dragStart(); w.startDragging(); }
     });
     window.addEventListener('mouseup', dragEnd, true);
-    drag.addEventListener('dblclick', safeToggleVfs);
+    drag.addEventListener('dblclick', toggleVfs);
     document.addEventListener('mousedown', (e) => {
       const w = tauriWin();
       if (e.altKey && w && !(e.target.closest && e.target.closest('#dywin-bar,#dywin-panel'))) {
@@ -309,7 +298,7 @@
       }
     }, true);
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && vfsOn) { safeToggleVfs(); e.stopPropagation(); }
+      if (e.key === 'Escape' && vfsOn) { toggleVfs(); e.stopPropagation(); }
       // 锁定时屏蔽页面快捷键(空格/方向键等);录入快捷键与 Esc 放行
       if (locked && !recording && e.key !== 'Escape'
         && !(e.target && e.target.closest && e.target.closest('#dywin-bar,#dywin-panel'))) {
@@ -323,11 +312,11 @@
     topBtn.addEventListener('click', () => {
       invoke('toggle_topmost').then(() => flip(topBtn, !topBtn._on)).catch(() => { topBtn.style.color = '#f77'; });
     });
-    fsBtn.addEventListener('click', safeToggleVfs);
-    minBtn.addEventListener('click', () => invoke('minimize_main_cmd').catch(() => {}));
+    fsBtn.addEventListener('click', toggleVfs);
+    minBtn.addEventListener('click', () => invoke('hide_main').catch(() => {}));
     gearBtn.addEventListener('click', () => window.__DYWIN_PANEL.toggle());
     lockBtn.addEventListener('click', () => setLock(!locked));
-    hideBtn.addEventListener('click', () => invoke('hide_main').catch(() => {}));
+    hideBtn.addEventListener('click', () => invoke('quit_app').catch(() => {}));
 
     // 滑条:本地即时应用 + 防抖持久化
     let sendT;

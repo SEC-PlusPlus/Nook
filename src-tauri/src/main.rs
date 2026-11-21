@@ -51,12 +51,14 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             commands::toggle_topmost,
             commands::hide_main,
+            commands::quit_app,
             commands::show_main_cmd,
-            commands::minimize_main_cmd,
             commands::get_settings,
             commands::set_opacity,
             commands::set_hotkey,
             commands::set_size_preset,
+            commands::vfs_fit_window,
+            commands::vfs_restore_cmd,
         ])
         .setup(|app| {
             state::migrate_legacy(); // 旧标识符数据一次性搬家
@@ -103,6 +105,8 @@ fn main() {
                 let _ = win.set_position(PhysicalPosition::new(x, y));
                 let _ = win.set_size(PhysicalSize::new(w, h));
             }
+            // 任务栏/最小化缩略图必须显式给窗口图标(透明无边框窗不会自动取 exe 图标)
+            let _ = win.set_icon(tauri::include_image!("icons/128x128.png"));
             win.show()?;
 
             let a = handle.clone();

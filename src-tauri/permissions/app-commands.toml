@@ -7,10 +7,12 @@ description = "DouYinWin 自定义命令白名单"
 commands.allow = [
   "toggle_topmost",
   "hide_main",
+  "quit_app",
   "show_main_cmd",
-  "minimize_main_cmd",
   "get_settings",
   "set_opacity",
   "set_hotkey",
   "set_size_preset",
+  "vfs_fit_window",
+  "vfs_restore_cmd",
 ]

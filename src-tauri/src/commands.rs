@@ -5,18 +5,18 @@ use tauri::AppHandle;
 
 use crate::appctl;
 use crate::hotkeys;
-use crate::state::{self, main_win, ALPHA_PCT, TOPMOST};
+use crate::state::{self, ALPHA_PCT, TOPMOST};
 
 #[tauri::command]
 pub fn toggle_topmost(app: AppHandle) {
     appctl::flip_topmost(&app);
 }
 
+/// 把手 ✕:直接退出程序(先落盘再退)
 #[tauri::command]
-pub fn hide_main(app: AppHandle) {
-    if let Some(w) = main_win(&app) {
-        let _ = w.hide();
-    }
+pub fn quit_app(app: AppHandle) {
+    state::persist(&app, true);
+    app.exit(0);
 }
 
 #[tauri::command]
@@ -24,9 +24,12 @@ pub fn show_main_cmd(app: AppHandle) {
     appctl::show_main(&app);
 }
 
+/// 把手 🗕:隐藏到托盘(透明窗的系统最小化在 Win11 任务栏是空白,故用隐藏替代)
 #[tauri::command]
-pub fn minimize_main_cmd(app: AppHandle) {
-    appctl::minimize_main(&app);
+pub fn hide_main(app: AppHandle) {
+    if let Some(w) = state::main_win(&app) {
+        let _ = w.hide();
+    }
 }
 
 #[tauri::command]
@@ -66,4 +69,18 @@ pub fn set_size_preset(app: AppHandle, which: String) {
         "big" => appctl::set_preset_size(&app, 800.0, 534.0),
         _ => appctl::set_preset_size(&app, state::DEFAULT_W, state::DEFAULT_H),
     }
+}
+
+/// VFS:窗口按视频宽高比自动配型(ar = 视频宽/高)
+#[tauri::command]
+pub fn vfs_fit_window(app: AppHandle, ar: f64) {
+    if ar.is_finite() && (0.2..=5.0).contains(&ar) {
+        appctl::vfs_fit_window(&app, ar);
+    }
+}
+
+/// VFS 退出:恢复原几何
+#[tauri::command]
+pub fn vfs_restore_cmd(app: AppHandle) {
+    appctl::vfs_restore(&app);
 }
