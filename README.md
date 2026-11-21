@@ -1,37 +1,8 @@
 # 🦀 Nook
 
-> **A pocket-sized corner window that keeps Douyin playing while you get things done.**
-> **一枚待在桌角、让你干活时也能瞟一眼抖音的小窗。**
+> **桌角的一枚闲窗** —— A pocket-sized corner window that keeps Douyin playing while you get things done.
 
-English | [中文](#中文)
-
-Nook turns Douyin's web player into a borderless always-on-top window that settles into a corner of your screen and stays out of your way — until you peek.
-
-Dim it until the video floats over your work. Lock it so a stray click or scroll can't pause playback or flip past your place. One key sends the video edge-to-edge in the window, and the window resizes itself to the video's aspect ratio — no letterbox, no crop. `Ctrl+Q` blinks it away; `Ctrl+Q` again blinks it back.
-
-Built on Rust and the system WebView2 runtime: one ~12 MB executable, no Electron bundle, no telemetry. Your position, size, opacity, hotkeys and login all live on your own machine.
-
-## Features
-
-| | |
-|---|---|
-| 🪟 **True transparency** | fade the whole window into whatever's underneath, then see through it |
-| 🔒 **Misclick lock** | clicks, double-clicks, wheels and page hotkeys all bounce off while you work |
-| ⛶ **Mini-theater** | video fills the window; the window fits the video's aspect ratio; `Esc` releases |
-| ⚡ **Blink minimize** | `Ctrl+Q` away, `Ctrl+Q` back — even from the tray |
-| 📐 **Adaptive zoom** | page content scales to any window size, drag the frameless edges freely |
-| 🧘 **Lightweight** | Rust + Tauri + system WebView2, ~12 MB single binary |
-| 💾 **Local-only** | everything persists in one config file; no accounts, no analytics |
-
-## Get it
-
-**Windows 10/11 (WebView2 preinstalled):** grab `Nook_x.y.z_x64-setup.exe` from the [`releases/`](releases/) folder in this repo (or GitHub Releases once tagged), or build it yourself (see below).
-
-Controls at a glance — the floating handle (fades when idle, hover to wake):
-`⠿⠿ 置顶(pin) · slider(opacity) · ⛶(theater) · 🗕(minimize) · ⚙(settings) · 🔓(lock) · ✕(hide)`
-Drag by `⠿⠿` or Alt+drag anywhere; double-click `⠿⠿` toggles theater mode. System tray has the full menu. `Ctrl+Alt+D` show/hide · `Ctrl+Alt+T` pin-on-top.
-
-> Third-party player, unaffiliated with ByteDance. Personal use only. It does not modify, crack or scrape the platform — it just frames the official web player.
+[**中文**](#中文) | [English](#english)
 
 ---
 
@@ -43,47 +14,95 @@ Nook 把抖音网页播放器变成一枚无边框、置顶的桌面小窗,安�
 
 基于 Rust 与系统 WebView2:约 12MB 单文件,无 Electron、无遥测。位置、大小、透明度、快捷键、登录态全部只存本机。
 
-**安装**:Win10/11 自带 WebView2,直接跑 `Nook_x.y.z_x64-setup.exe`(Releases 下载,当前版本 v0.7.0,安装于 `%LOCALAPPDATA%\Programs\Nook`,免管理员)。
+### 功能
 
-**上手**:悬浮把手 `⠿⠿ 置顶 滑条 ⛶ 🗕 ⚙ 🔓 ✕`,闲置自动淡出;托盘右键有全套菜单;`Ctrl+Alt+D` 显隐、`Ctrl+Alt+T` 置顶、`Ctrl+Q` 闪现最小化(⚙ 里可改键)。
+- 🪟 **真透明** —— 整个窗口淡进底下的工作区,透过它看清后面
+- 🔒 **防误触锁** —— 干活时点击/双击/滚轮/快捷键全部屏蔽,视频纹丝不动;拖窗照常
+- ⛶ **迷你影院** —— 视频撑满窗口,窗口适配视频比例,`Esc` 释放
+- ⚡ **一键闪现** —— `Ctrl+Q` 收走、再按弹回,托盘隐藏状态也能直接唤出
+- 📐 **等比自适应** —— 窗口任意缩放,页面内容整体跟随缩放;无边框边缘可直接拖拽改大小
+- 🧘 **轻装上阵** —— Rust + Tauri + 系统 WebView2,安装包仅 2.5MB
+- 💾 **数据不过夜** —— 一切存在本机一个配置文件,无账号体系,无数据统计
+
+### 下载安装
+
+**Windows 10 / 11**(自带 WebView2,免管理员,装于当前用户目录):
+
+👉 **[Nook_0.7.0_x64-setup.exe](https://github.com/SEC-PlusPlus/Nook/raw/main/releases/Nook_0.7.0_x64-setup.exe)**(2.5MB,双击安装)
+
+### 上手
+
+悬浮把手(闲置自动淡出,鼠标移过去唤醒):`⠿⠿ 置顶 [透明度滑条] ⛶ 🗕 ⚙ 🔓 ✕`
+
+- `⠿⠿` 按住拖动 · **双击 = 迷你影院** · 页面任意处 **Alt+按住左键** 也可拖
+- `⚙` 设置面板:自定义快捷键(默认 `Ctrl+Q`)、窗口大小预设
+- 托盘右键:全套菜单;双击托盘图标:唤出窗口
+- `Ctrl+Alt+D` 显隐 · `Ctrl+Alt+T` 置顶 · `Ctrl+Q` 最小化⇄弹回
+- 关窗/`Alt+F4` = 隐藏到托盘,不是退出
 
 > 非官方第三方工具,与字节跳动无关联,仅供个人使用;不破解、不抓取、不修改平台数据。
+
+---
+
+## English
+
+Nook turns Douyin's web player into a borderless always-on-top window that settles into a corner of your screen and stays out of your way — until you peek.
+
+Dim it until the video floats over your work. Lock it so a stray click or scroll can't pause playback or flip past your place. One key sends the video edge-to-edge in the window, and the window resizes itself to the video's aspect ratio — no letterbox, no crop. `Ctrl+Q` blinks it away; `Ctrl+Q` again blinks it back.
+
+Built on Rust and the system WebView2 runtime: one ~12 MB executable, no Electron, no telemetry. Your position, size, opacity, hotkeys and login all live on your own machine.
+
+### Features
+
+- 🪟 **True transparency** — fade the whole window into whatever's underneath
+- 🔒 **Misclick lock** — clicks, double-clicks, wheels and page hotkeys all bounce off while you work
+- ⛶ **Mini-theater** — video fills the window, window fits the video; `Esc` releases
+- ⚡ **Blink minimize** — `Ctrl+Q` away, `Ctrl+Q` back, even from the tray
+- 📐 **Adaptive zoom** — page content scales to any window size; frameless edges resize natively
+- 🧘 **Lightweight** — Rust + Tauri + system WebView2; 2.5 MB installer
+- 💾 **Local-only** — one config file, no accounts, no analytics
+
+### Download & install
+
+**Windows 10 / 11** (WebView2 preinstalled; per-user install, no admin required):
+
+👉 **[Nook_0.7.0_x64-setup.exe](https://github.com/SEC-PlusPlus/Nook/raw/main/releases/Nook_0.7.0_x64-setup.exe)** (2.5 MB)
+
+### Controls
+
+Floating handle (fades when idle, hover to wake): `⠿⠿ Pin · opacity slider · ⛶ Theater · 🗕 Minimize · ⚙ Settings · 🔓 Lock · ✕ Hide`
+
+Drag by `⠿⠿`, double-click it for mini-theater, or Alt+drag anywhere. `Ctrl+Alt+D` show/hide · `Ctrl+Alt+T` pin-on-top · `Ctrl+Q` blink minimize. Closing the window hides it to the tray.
+
+> Third-party player, unaffiliated with ByteDance. Personal use only.
+
+---
 
 ## 构建 / Build
 
 ```bash
-# 需要:Rust 工具链 + VS Build Tools(C++)+ Node(仅 CLI 用)
+# 需要 Rust 工具链 + VS Build Tools(C++)+ Node(仅 CLI 用)
 cd src-tauri
 cargo build --release              # 便携版:target/release/nook.exe
-# NSIS 安装包(离线,无需从 GitHub 下载打包工具):
+# NSIS 安装包(离线,不依赖 GitHub 下载):
 #   在 tools/installer/ 下执行 "%LOCALAPPDATA%\tauri\NSIS\makensis.exe" installer.nsi
-#   产物 → src-tauri/target/release/bundle/nsis/Nook_*-setup.exe,并同步到 releases/
+#   产物 → target/release/bundle/nsis/Nook_*-setup.exe,同步复制到 releases/
 ```
 
-首次编译走 rsproxy 镜像(`.cargo/config.toml`,仅本项目生效)。测试 GUI 一律用 release:debug 版随启动它的终端一起退出,且会开 CDP 调试端口(9222)。
+首次拉 Rust 依赖走 rsproxy 镜像(`.cargo/config.toml`,仅本项目生效)。
 
-### 模块分工 / Code map
+## 项目结构 / Code map
 
 | 文件 | 职责 |
 |---|---|
-| `src-tauri/src/main.rs` | 装配:插件、命令注册、窗口创建、注入双通道、旧数据迁移 |
-| `src-tauri/src/state.rs` | 全局状态 + 持久化(几何合法性过滤、legacy 搬家) |
-| `src-tauri/src/appctl.rs` | 置顶/显隐/最小化⇄弹回/尺寸/VFS 窗口配型 |
-| `src-tauri/src/hotkeys.rs` | 自定义快捷键:解析、校验、注册(默认 Ctrl+Q) |
-| `src-tauri/src/ui.rs` | 托盘 |
-| `src-tauri/src/commands.rs` | 远程页命令面(ACL:`permissions/app-commands.toml`) |
-| `src-tauri/inject/douyin.js` | 把手/透明/锁/迷你影院/设置面板/等比自适应 |
-| `tools/draw_logo.ps1` | logo 绘制源(GDI,改坐标即可重画)→ `npx @tauri-apps/cli icon` |
-
-### 实现要点(踩坑记录,勿回退)
-
-- 透明:WebView2 不吃 Win32 整窗 alpha;= 窗口 `transparent(true)` + JS 对 body 子元素设 CSS `opacity`,且 html/body 背景必须置 transparent
-- 注入:wry 的 `initialization_script` 在外部 URL 上不执行;靠 `on_page_load(Finished)+eval` 兜底,脚本自带幂等守卫
-- ACL:远程页调用自定义命令必须 `permissions/app-commands.toml` 白名单 + capability 引用,否则 invoke 静默挂起
-- 迷你影院:video `fixed` 满视口 + 祖先链无条件破除 transform/filter/backdrop-filter/contain/container-type/perspective/will-change(包含块劫持);600ms 看门狗自愈(播放器重写样式/连播换节点);窗口按 `videoWidth/videoHeight` 配型
-- 几何:最小化占位坐标(-32000)不落盘;存档读取带合法性过滤;配置以 `ver` 字段做迁移
-- 重编前先杀进程,运行中的 exe 被锁会报 os error 5
-
-## License
-
-Source is published for now without a license file (all rights reserved by author) — licensing decision pending. ⚠️ 若你打算开源授权,告诉我选哪个许可证我来补 LICENSE 文件。
+| `src-tauri/src/main.rs` | 装配:插件、命令注册、窗口创建、脚本注入、旧数据迁移 |
+| `src-tauri/src/state.rs` | 全局状态与持久化 |
+| `src-tauri/src/appctl.rs` | 置顶 / 显隐 / 最小化 / 尺寸 / 迷你影院窗口配型 |
+| `src-tauri/src/hotkeys.rs` | 全局快捷键解析与注册 |
+| `src-tauri/src/ui.rs` | 系统托盘 |
+| `src-tauri/src/commands.rs` | 页面侧命令面(ACL:`permissions/app-commands.toml`) |
+| `src-tauri/inject/douyin.js` | 把手 / 透明 / 锁 / 迷你影院 / 自适应缩放 |
+| `tools/installer/` | NSIS 安装包脚本 |
+| `tools/draw_logo.ps1` | logo 绘制源(GDI)|
+| `tools/verify/` | CDP 自动化验证脚本 |
+| `releases/` | 发布的安装包 |
