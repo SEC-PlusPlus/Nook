@@ -39,8 +39,8 @@
   let userAlpha = 100;      // 15-100
   let dragSupp = false;     // 拖动中 → 压暗
   let vfsOn = false;
-  let vfsSaved = null;      // [[el, cssText]] 祖先链样式还原
-  let vfsHidden = null;     // [[el, display]] 旁支隐藏还原
+  let vfsSaved = null;      // [[player, origParent, cssText]] 退出时送播放器回家
+  let vfsLoopGuard = null;  // 重播/防回填/防自动连播 守卫
 
   // ===== 等比缩放 + 真透明:作用于 body 直属子元素(把手/面板/视频层除外) =====
   const TARGET_CSS_W = 1280;
@@ -52,16 +52,25 @@
     if (document.documentElement.style.background !== 'transparent') {
       document.documentElement.style.background = 'transparent';
     }
-    const z = Math.min(1.0, Math.max(0.42,
+    // 正在看"大视频"(播放页/feed 播放态/影院宿主)时整页豁免 zoom:
+    // 抖音播放器自适配窗口,我们的 zoom 撞上其 100vh 内部布局会产生画中画式错位
+    const playerVisible = () => {
+      for (const x of document.querySelectorAll('video')) {
+        const b = x.getBoundingClientRect();
+        if (b.width >= innerWidth * 0.4 && b.height >= innerHeight * 0.4
+          && b.bottom > 0 && b.top < innerHeight) return true;
+      }
+      return false;
+    };
+    const z = playerVisible() ? 1.0 : Math.min(1.0, Math.max(0.42,
       Math.min(window.innerWidth / TARGET_CSS_W, window.innerHeight / TARGET_CSS_H)));
     const a = (dragSupp ? Math.min(userAlpha, 60) : userAlpha) / 100;
     const zs = z.toFixed(3);
     const as = a.toFixed(3);
-    // VFS 激活时,包含视频的 body 直属子树豁免 zoom(100vw/vh 在缩放子树里会失真);透明度照常
-    const fsTop = vfsOn ? window.__DYWIN_VFSTOP : null;
+    // 影院宿主永远豁免 zoom;透明度照常作用于宿主
     for (const el of document.body.children) {
       if (el.nodeType === 1 && !SKIP.has(el.id) && el.style) {
-        const want = el === fsTop ? '1.000' : zs;
+        const want = el.id === 'dywin-vfsbox' ? '1.000' : zs;
         if (el.style.zoom !== want) el.style.zoom = want;
         if (el.style.opacity !== as) el.style.opacity = as;
       }
@@ -83,148 +92,90 @@
     } catch (e) { }
   }
 
-  // ===== 视频小窗全屏(VFS):接管播放容器 + 破除包含块劫持 + 看门狗自愈 =====
+// ===== 影院(单视频聚焦模式)=====
+  // 进入:当前视频的播放器搬进顶层宿主——窗口保持现状可随意 resize(宿主随视口自适应);
+  // 屏蔽滑动(wheel 被宿主吞掉、滚动键在 keydown 层拦截);视频播完自动重播;
+  // 想看别的视频:Esc/⛶ 退出,播放器回家。进入/退出对页面零布局侵入。
   const vfsBtnVisual = () => {
     const b = document.getElementById('dywin-fs');
     if (b) b.style.color = vfsOn ? '#5df2d6' : '';
   };
-  let vfsAnchors = null;  // Set<el> 样式已存档的祖先
-  let vfsHiddenSet = null; // Set<el> 已隐藏的旁支
 
-  // 从视频上溯定位近似整屏的接管容器
-  const vfsBoxEl = (v) => {
-    let box = v;
-    while (box && box !== document.body) {
-      if (box.clientWidth >= innerWidth * 0.9 && box.clientHeight >= innerHeight * 0.8) return box;
-      box = box.parentElement;
+  // 当前可见的 video
+  const vfsCurrentVideo = () => {
+    const all = document.querySelectorAll('video');
+    let fallback = null;
+    for (const x of all) {
+      const b = x.getBoundingClientRect();
+      if (b.width > 0 && b.top > -b.height * 0.5 && b.top < innerHeight * 0.5) return x;
+      if (!fallback) fallback = x;
     }
-    return v;
+    return fallback;
   };
 
-  const vfsArchive = (el) => {
-    if (!vfsAnchors.has(el)) {
-      vfsSaved.push([el, el.style.cssText]);
-      vfsAnchors.add(el);
-    }
-  };
+  const vfsPlayerOf = (v) => (v.closest && v.closest('[class*="xgplayer"]')) || v.parentElement || v;
 
-  // 隐藏视频路径之外的旁支(左栏/顶栏/互动条);playerRoot 内部不动=控制层保留
-  const vfsHideSiblings = (v) => {
-    const boxEl = vfsBoxEl(v);
-    const playerRoot = (v.closest && v.closest('[class*="xgplayer"]')) || v.parentElement;
-    let cur = playerRoot;
-    let guard = 0;
-    while (cur && cur !== boxEl && cur.parentElement && cur.parentElement !== document.body && guard++ < 30) {
-      const par = cur.parentElement;
-      for (const sib of par.children) {
-        if (sib !== cur && sib.nodeType === 1 && !SKIP.has(sib.id) && !vfsHiddenSet.has(sib)) {
-          vfsHiddenSet.add(sib);
-          vfsHidden.push([sib, sib.style.display]);
-          sib.style.display = 'none';
-        }
-      }
-      cur = par;
+  const vfsStyleTick = () => {
+    if (!vfsOn || !vfsSaved || !vfsSaved[0]) return;
+    const vv = vfsSaved[0][0].querySelector('video');
+    if (!vv) return;
+    // 防播放器回填样式:逐轮重刷。contain=画面按原始比例完整居中,窗口比例不合时只出黑边,
+    // 不裁切不拉伸(即"原视频等比例缩小")
+    vv.style.setProperty('width', '100%', 'important');
+    vv.style.setProperty('height', '100%', 'important');
+    vv.style.setProperty('object-fit', 'contain', 'important');
+    // 播完重播
+    if (vv.ended || vv.currentTime >= vv.duration - 0.3 && vv.duration) {
+      try { vv.currentTime = 0; vv.play(); } catch (_) { }
     }
-    // VFS 期间豁免 zoom 的 body 直属祖先
-    let topChild = boxEl;
-    while (topChild.parentElement && topChild.parentElement !== document.body) {
-      topChild = topChild.parentElement;
+    // 抖音在宿主外自动播下一条 → 摁住它
+    for (const other of document.querySelectorAll('video')) {
+      if (other !== vv && !other.paused) { try { other.pause(); } catch (_) { } }
     }
-    vfsArchive(topChild);
-    window.__DYWIN_VFSTOP = topChild;
-  };
-
-  // 核心接管:破除会劫持 fixed 的祖先包含块,视频元素钉满视口,幂等可反复执行
-  const vfsEnforce = () => {
-    const v = document.querySelector('video');
-    if (!v) return;
-    let p = v;
-    let guard = 0;
-    while (p && p !== document.body && guard++ < 40) {
-      vfsArchive(p);
-      const s = p.style;
-      // 无条件清除一切可劫持 fixed 包含块的属性(计算属性名跨引擎不可靠,宁可多清)
-      s.setProperty('z-index', '2147483000', 'important');
-      s.setProperty('transform', 'none', 'important');
-      s.setProperty('filter', 'none', 'important');
-      s.setProperty('backdrop-filter', 'none', 'important');
-      s.setProperty('-webkit-backdrop-filter', 'none', 'important');
-      s.setProperty('contain', 'none', 'important');
-      s.setProperty('container-type', 'normal', 'important');
-      s.setProperty('perspective', 'none', 'important');
-      s.setProperty('will-change', 'auto', 'important');
-      p = p.parentElement;
-    }
-    v.style.setProperty('position', 'fixed', 'important');
-    v.style.setProperty('inset', '0', 'important');
-    v.style.setProperty('width', '100vw', 'important');
-    v.style.setProperty('height', '100vh', 'important');
-    v.style.setProperty('margin', '0', 'important');
-    v.style.setProperty('padding', '0', 'important');
-    v.style.setProperty('background', 'transparent', 'important');
-    v.style.setProperty('display', 'block', 'important');
-    v.style.setProperty('object-fit', 'contain', 'important');
-    v.style.setProperty('object-position', 'top center', 'important');
-    vfsHideSiblings(v);
-  };
-
-  // 让窗口比例 == 视频比例(Rust 侧在 92% 工作区内取最大并居中,自带快照)
-  const vfsFit = (v) => {
-    const ar = (v.videoWidth && v.videoHeight)
-      ? v.videoWidth / v.videoHeight
-      : (v.clientWidth && v.clientHeight ? v.clientWidth / v.clientHeight : 0);
-    if (ar > 0.2 && ar < 5) invoke('vfs_fit_window', { ar: +ar.toFixed(4) }).catch(() => {});
   };
 
   const toggleVfs = () => {
     if (vfsOn) {
-      if (vfsSaved) for (const [el, txt] of vfsSaved) el.style.cssText = txt;
-      if (vfsHidden) for (const [el, dsp] of vfsHidden) el.style.display = dsp;
+      // 退出:播放器回家、样式还原、宿主移除、守卫清除
+      for (const [el, parent, txt] of (vfsSaved || [])) {
+        try { el.style.cssText = txt; } catch (_) { }
+        try { if (parent && parent.isConnected) parent.appendChild(el); else el.remove(); } catch (_) { }
+      }
       vfsSaved = null;
-      vfsHidden = null;
-      vfsAnchors = null;
-      vfsHiddenSet = null;
+      if (vfsLoopGuard) { clearInterval(vfsLoopGuard); vfsLoopGuard = null; }
+      const host = document.getElementById('dywin-vfsbox');
+      if (host) host.remove();
       window.__DYWIN_VFSTOP = null;
       vfsOn = false;
       vfsBtnVisual();
       applyScale();
-      invoke('vfs_restore_cmd').catch(() => {});
       return;
     }
-    const v = document.querySelector('video');
+    const v = vfsCurrentVideo();
     if (!v) return;
-    vfsSaved = [];
-    vfsHidden = [];
-    vfsAnchors = new Set();
-    vfsHiddenSet = new Set();
-    vfsEnforce();
+    const pl = vfsPlayerOf(v);
+    vfsSaved = [[pl, pl.parentElement, pl.style.cssText]]; // 回家的路
+    const host = document.createElement('div');
+    host.id = 'dywin-vfsbox';
+    css(host, `position:fixed;inset:0;z-index:2147483600;background:transparent;overflow:hidden;
+      display:flex;align-items:center;justify-content:center;`);
+    // 滑动屏蔽:wheel 在宿主层吞掉(播放器内控件的点击不受影响)
+    host.addEventListener('wheel', (e) => { e.preventDefault(); e.stopPropagation(); }, { passive: false });
+    document.body.appendChild(host);
+    pl.style.setProperty('width', '100%', 'important');
+    pl.style.setProperty('height', '100%', 'important');
+    pl.style.setProperty('margin', '0', 'important');
+    host.appendChild(pl); // 移动 DOM 不中断播放
     vfsOn = true;
+    window.__DYWIN_VFSTOP = true;
+    vfsStyleTick();
+    vfsLoopGuard = setInterval(vfsStyleTick, 400);
     vfsBtnVisual();
     applyScale();
-    vfsFit(v);
-    if (!v.videoWidth) {
-      v.addEventListener('loadedmetadata', () => { if (vfsOn) vfsFit(v); }, { once: true });
-    }
   };
-
   window.__DYWIN_TOGGLE_VFS = toggleVfs;
 
-  // 看门狗:播放器重写样式/自动连播换节点后自愈;并持续维持窗口-视频比例一致
-  setInterval(() => {
-    if (!vfsOn) return;    const v = document.querySelector('video');
-    if (!v) return;
-    const b = v.getBoundingClientRect();
-    if (b.top > 2 || Math.abs(b.width - innerWidth) > 4 || Math.abs(b.height - innerHeight) > 4) {
-      vfsEnforce();
-      applyScale();
-    }
-    if (v.videoWidth && v.videoHeight) {
-      const va = v.videoWidth / v.videoHeight;
-      const wa = innerWidth / innerHeight;
-      if (Math.abs(va - wa) / va > 0.03) vfsFit(v);
-    }
-  }, 600);
-  // 抖音原生全屏请求 → 改道 VFS
+    // 抖音原生全屏请求 → 改道 VFS
   if (!Element.prototype.__DYWIN_FS_HIJACKED) {
     Element.prototype.__DYWIN_FS_HIJACKED = 1;
     const raf = Element.prototype.requestFullscreen;
@@ -241,7 +192,7 @@
 
     const bar = document.createElement('div');
     bar.id = 'dywin-bar';
-    css(bar, `position:fixed;top:4px;left:50%;transform:translateX(-50%);
+    css(bar, `position:fixed;top:4px;left:50%;transform:none;
       z-index:2147483647;display:flex;gap:8px;align-items:center;
       padding:3px 12px;border-radius:15px;background:rgba(12,12,16,.85);
       color:#bbb;font:12px/1.5 -apple-system,'Segoe UI','Microsoft YaHei',sans-serif;
@@ -299,6 +250,12 @@
     }, true);
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && vfsOn) { toggleVfs(); e.stopPropagation(); }
+      // 影院模式:滚动键被吞(想看下一条请先退出影院)
+      if (vfsOn && ['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End'].includes(e.key)
+        && !(e.target && e.target.closest && e.target.closest('#dywin-bar,#dywin-panel'))) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
       // 锁定时屏蔽页面快捷键(空格/方向键等);录入快捷键与 Esc 放行
       if (locked && !recording && e.key !== 'Escape'
         && !(e.target && e.target.closest && e.target.closest('#dywin-bar,#dywin-panel'))) {
@@ -331,7 +288,7 @@
     // ===== 设置面板(页面内小组件,不新开窗口) =====
     const panel = document.createElement('div');
     panel.id = 'dywin-panel';
-    css(panel, `position:fixed;top:34px;left:50%;transform:translateX(-50%);
+    css(panel, `position:fixed;top:34px;left:50%;transform:none;
       z-index:2147483647;display:none;flex-direction:column;gap:8px;width:300px;
       padding:12px 14px;border-radius:12px;background:rgba(16,16,22,.96);
       color:#cfcfd8;font:12px/1.6 -apple-system,'Segoe UI','Microsoft YaHei',sans-serif;

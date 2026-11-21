@@ -57,8 +57,6 @@ fn main() {
             commands::set_opacity,
             commands::set_hotkey,
             commands::set_size_preset,
-            commands::vfs_fit_window,
-            commands::vfs_restore_cmd,
         ])
         .setup(|app| {
             state::migrate_legacy(); // 旧标识符数据一次性搬家
