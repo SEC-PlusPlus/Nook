@@ -1,0 +1,17 @@
+{
+  "identifier": "main",
+  "description": "抖音页面(远程 URL)最小权限:窗口拖动 + 应用命令白名单",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "core:window:allow-start-dragging",
+    "allow-app-commands"
+  ],
+  "remote": {
+    "urls": [
+      "https://*.douyin.com/**",
+      "https://*.bytedance.com/**",
+      "https://*.douyincdn.com/**"
+    ]
+  }
+}

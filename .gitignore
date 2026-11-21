@@ -1,0 +1,16 @@
+# Rust/Tauri 构建产物
+/src-tauri/target/
+/src-tauri/gen/
+/target/
+
+# 编辑器/IDE 缓存
+/.codeartsdoor/
+/.codeartsdoer/
+node_modules/
+
+# 临时输出
+*.log
+*.tmp
+
+# 例外:发布的安装包纳入版本库(小文件,供大家直接下载)
+!releases/*.exe
